@@ -76,7 +76,40 @@ class Vertex_prop:
     def __str__(self):
         return f"Vertex_prop(color: {self.color}, d: {self.d}, f: {self.f }, pi: {None if self.pi == None else self.pi.label}, label: {self.label})"
 
-# Depth first search; returns vertex properties created for graph g
+# Breadth first search - returns the predecessor subgraph (as vertex properties) for graph g w.r.t source vertex s   
+def bfs(g, s):
+    vprops = []
+
+    for i in range(len(g)):
+        if (g[i] == s): 
+            vprops.append(None) # Don't include props for the source vertex
+            continue
+
+        vprops.append(Vertex_prop(COLOR.WHITE, float("inf"), None, None, i))
+    
+    sp = Vertex_prop(COLOR.GREY, 0, None, None, g.index(s))  # Here's props for the source vertex
+    q = [] 
+    q.append(sp)
+
+    while len(q) != 0:
+        u = q.pop()
+        
+        # For every Pubkey that this Pubkey has signed
+        for v in g[u.label].signed:
+            vp = vprops[v] if vprops[v] != None else sp
+            
+            if vp.color == COLOR.WHITE:
+                vp.color = COLOR.GREY
+                vp.d = u.d + 1
+                vp.pi = u
+                q.append(vp)
+            
+        u.color = COLOR.BLACK
+
+    vprops[sp.label] = sp
+    return [vp for vp in vprops if vp.pi != None or vp == sp]
+
+# Depth first search - returns vertex properties created for graph g
 def dfs(g, visit_order=None):
     vprops = []
 
@@ -149,21 +182,64 @@ def scc(g, decompose=True):
 
     return scc
 
+# Compute the mean shortest distance for a vertex with label 'l' in graph g
+def msd(g, l):
+    pg = bfs(g, g[l])
+    m = sum([vprop.d for vprop in pg]) / len(pg)
+    return m
+
+# Compute the average mean shortest distance over a graph g and subset of peers s
+def amsd(g, s):
+    msds = [msd(g, i) for i in s]
+    return sum(msds) / len(s)
+
 ### EXPERIMENTS ###
 
-# Make a network of 10 peers, all are part of the strong set
+# Make a network of 10 peers (all are part of the strong set) and compute MSD for each
 g1 = makeg(10)
 print(*scc(g1), sep="\n")
-print(f"(Network size: {len(g1)})\n\n")
+print(f"(Network size: {len(g1)} AMSD: {amsd(g1, scc(g1)[0])})")
 
-# Add 10 new peers to the network, all of whom are part of their own strongly connected disconnected subgraph
-g2 = makeg(10)
+msds = [(i, msd(g1, i)) for i in scc(g1)[0]]
+msds.sort(key=lambda x: x[1])
+
+print("STRONG SET:")
+
+for m in msds:
+    print(f"peer: {m[0]} msd: {m[1]}")
+
+print("\n\n")
+
+# Add 20 new peers to the network, all of whom are part of their own strongly connected disconnected subgraph
+# compute MSD for the original strong set
+g2 = makeg(20, sig_range=(5, 10))
 g1 = addg(g1, g2)
 print(*scc(g1), sep="\n")
-print(f"(Network size: {len(g1)})\n\n")
+print(f"(Network size: {len(g1)} AMSD: {amsd(g1, scc(g1)[0])})")
+
+msds = [(i, msd(g1, i)) for i in scc(g1)[0]]
+msds.sort(key=lambda x: x[1])
+
+print("STRONG SET:")
+
+for m in msds:
+    print(f"peer: {m[0]} msd: {m[1]}")
+
+print("\n\n")
 
 # Reciprocally sign just one of the new peers into the strong set, watch what happens
 g1[17].sign(2)
 g1[2].sign(17)
 print(*scc(g1), sep="\n")
-print(f"(Network size: {len(g1)})\n\n")
+print(f"(Network size: {len(g1)} AMSD: {amsd(g1, scc(g1)[0])})")
+
+msds = [(i, msd(g1, i)) for i in scc(g1)[0]]
+msds.sort(key=lambda x: x[1])
+
+print("STRONG SET:")
+
+for m in msds:
+    print(f"peer: {m[0]} msd: {m[1]}")
+
+print("\n\n")
+
