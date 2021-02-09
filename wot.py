@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import copy
 import uuid
 import random
@@ -199,10 +197,12 @@ def msd(g, l):
     pg = bfs(g, g[l])
     return sum([vprop.d for vprop in pg]) / len(pg)
 
+# Experimental idea:
 # Compute dearticulated MSD for a vertex with label 'l' in graph g
 # in DMSD, vertices for whom vertex l is an articulation point are 
 # disincluded from the set over which the mean is calculated
-# TODO: this metric is so far pretty useless
+# TODO: this metric is so far pretty useless - maybe we should weight
+# the final calculation by the cardinality of the set after dearticulation?
 def dmsd(g, l):
     h = dcon(g, l)
     
@@ -218,56 +218,20 @@ def amsd(g, s):
     msds = [msd(g, i) for i in s]
     return sum(msds) / len(s)
 
-### EXPERIMENTS ###
+# Compute the articulation points which would disconnect a vertex with 
+# label 'l' from the canonical strong set over graph g
+# If l is not in the canonical strong set over g, the result is undefined
+def ss_artic(g, l):
+    # Brute force approach
+    ap = []
 
-# Below, we simulate a Sybil attack scenario in which an adversary (Peer 17) creates a strongly
-# connected disconnected subgraph consisting of sock accounts, then tricks one non-adversarial
-# peer into recirpocally signing him into the network. The result is that Peer 17 winds up
-# with top 10% global MSD network-wide.
+    for pubkey in g:
+        h = dcon(g, pubkey.label)
+        dscc = scc(h)
+        
+        # TODO: this assumes that the 0th list returned by SCC is the strong set
+        # we need a strongset function which identifies the canonical strong set
+        if l not in dscc[0] and pubkey.label != l:
+            ap.append(pubkey.label)
 
-# Make a network of 10 peers (all are part of the strong set)
-g1 = makeg(10)
-print(*scc(g1), sep="\n")
-print(f"(Network size: {len(g1)} AMSD: {amsd(g1, scc(g1)[0])})")
-
-msds = [(i, msd(g1, i)) for i in scc(g1)[0]]
-msds.sort(key=lambda x: x[1])
-
-print("STRONG SET:")
-
-for m in msds:
-    print(f"peer: {m[0]} msd: {m[1]}")
-
-print("\n\n")
-
-# Add 20 new peers to the network, all of whom are part of their own strongly connected disconnected subgraph
-g2 = makeg(20, sig_range=(5, 10))
-g1 = addg(g1, g2)
-print(*scc(g1), sep="\n")
-print(f"(Network size: {len(g1)} AMSD: {amsd(g1, scc(g1)[0])})")
-
-msds = [(i, msd(g1, i)) for i in scc(g1)[0]]
-msds.sort(key=lambda x: x[1])
-
-print("STRONG SET:")
-
-for m in msds:
-    print(f"peer: {m[0]} msd: {m[1]}")
-
-print("\n\n")
-
-# Peer 17 tricks peer 2 into reciprocally signing him into the strong set - watch what happens
-g1[17].sign(2)
-g1[2].sign(17)
-print(*scc(g1), sep="\n")
-print(f"(Network size: {len(g1)} AMSD: {amsd(g1, scc(g1)[0])})")
-
-msds = [(i, msd(g1, i)) for i in scc(g1)[0]]
-msds.sort(key=lambda x: x[1])
-
-print("STRONG SET:")
-
-for m in msds:
-    print(f"peer: {m[0]} msd: {m[1]}")
-
-print("\n\n")
+    return ap
