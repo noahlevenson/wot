@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import copy
 import uuid
 import random
 from enum import IntEnum
@@ -30,7 +31,7 @@ class Pubkey():
     def sign(self, idx):
         self.signed.append(idx)
 
-# Construct a graph of n_peers, each reciprocally signing between sig_range peers
+# Construct a graph of n_peers, each reciprocally signing sig_range peers
 def makeg(n_peers, sig_range=(1, 3)):
     g = []
 
@@ -58,7 +59,18 @@ def addg(g1, g2):
     
     return g1 + g2
 
-# Discovery colors for depth first search
+# Return a copy of graph g with vertex label 'l' disconnected, updating all signatures appropriately
+def dcon(g, l):
+    h = copy.deepcopy(g)
+    h[l].signed = []
+
+    for pubkey in h:
+        if l in pubkey.signed:
+            pubkey.signed.remove(l)
+
+    return h
+
+# Discovery colors for graph search algos
 class COLOR(IntEnum):
     WHITE = 0
     GREY = 1
@@ -185,8 +197,21 @@ def scc(g, decompose=True):
 # Compute the mean shortest distance for a vertex with label 'l' in graph g
 def msd(g, l):
     pg = bfs(g, g[l])
-    m = sum([vprop.d for vprop in pg]) / len(pg)
-    return m
+    return sum([vprop.d for vprop in pg]) / len(pg)
+
+# Compute dearticulated MSD for a vertex with label 'l' in graph g
+# in DMSD, vertices for whom vertex l is an articulation point are 
+# disincluded from the set over which the mean is calculated
+# TODO: this metric is so far pretty useless
+def dmsd(g, l):
+    h = dcon(g, l)
+    
+    # TODO: this assumes that the 0th list returned by SCC is the strong set
+    # we need a strongset function which identifies the canonical strong set
+    dscc = scc(h)
+    pg = bfs(g, g[l])
+    connected = [vprop for vprop in pg if vprop.label in dscc[0]]
+    return sum([vprop.d for vprop in connected]) / len(connected) 
 
 # Compute the average mean shortest distance over a graph g and subset of peers s
 def amsd(g, s):
@@ -195,7 +220,12 @@ def amsd(g, s):
 
 ### EXPERIMENTS ###
 
-# Make a network of 10 peers (all are part of the strong set) and compute MSD for each
+# Below, we simulate a Sybil attack scenario in which an adversary (Peer 17) creates a strongly
+# connected disconnected subgraph consisting of sock accounts, then tricks one non-adversarial
+# peer into recirpocally signing him into the network. The result is that Peer 17 winds up
+# with top 10% global MSD network-wide.
+
+# Make a network of 10 peers (all are part of the strong set)
 g1 = makeg(10)
 print(*scc(g1), sep="\n")
 print(f"(Network size: {len(g1)} AMSD: {amsd(g1, scc(g1)[0])})")
@@ -211,7 +241,6 @@ for m in msds:
 print("\n\n")
 
 # Add 20 new peers to the network, all of whom are part of their own strongly connected disconnected subgraph
-# compute MSD for the original strong set
 g2 = makeg(20, sig_range=(5, 10))
 g1 = addg(g1, g2)
 print(*scc(g1), sep="\n")
@@ -227,7 +256,7 @@ for m in msds:
 
 print("\n\n")
 
-# Reciprocally sign just one of the new peers into the strong set, watch what happens
+# Peer 17 tricks peer 2 into reciprocally signing him into the strong set - watch what happens
 g1[17].sign(2)
 g1[2].sign(17)
 print(*scc(g1), sep="\n")
@@ -242,4 +271,3 @@ for m in msds:
     print(f"peer: {m[0]} msd: {m[1]}")
 
 print("\n\n")
-

@@ -8,6 +8,10 @@
 but only w.r.t each vertex in the strong set? Similarly, how should we do it when calculating AMSD?
 
 3. How do we prevent an attack where an adversary creates more signatures for a pubkey than the system can compute?
+https://gist.github.com/rjhansen/67ab921ffb4084c865b3618d6955275f
 
-4. What's the right data structure strategy for representing signatures? It seems that PGP implementations keep signatures with the signee rather than
-the signer - why?
+4. What's the right data structure strategy for representing signatures? It seems that PGP implementations keep signatures with the signee rather than the signer - why?
+
+5. Wanna weight the edges? 
+
+6. We need a strongset function which identifies the canonical strong set from a list of strongly connected components - use this for dearticulated MSD...
