@@ -102,18 +102,18 @@ def bfs(g, s):
     q.append(sp)
 
     while len(q) != 0:
-        u = q.pop()
+        u = q.pop(0)
         
         # For every Pubkey that this Pubkey has signed
         for v in g[u.label].signed:
-            vp = vprops[v] if vprops[v] != None else sp
+            vp = vprops[v] if vprops[v] != None else sp 
             
             if vp.color == COLOR.WHITE:
                 vp.color = COLOR.GREY
                 vp.d = u.d + 1
                 vp.pi = u
                 q.append(vp)
-            
+
         u.color = COLOR.BLACK
 
     vprops[sp.label] = sp
@@ -194,7 +194,7 @@ def scc(g, decompose=True):
 
 # Compute the mean shortest distance for a vertex with label 'l' in graph g
 def msd(g, l):
-    pg = bfs(g, g[l])
+    pg = bfs(g, g[l])[0]
     return sum([vprop.d for vprop in pg]) / len(pg)
 
 # Experimental idea:
@@ -209,7 +209,7 @@ def dmsd(g, l):
     # TODO: this assumes that the 0th list returned by SCC is the strong set
     # we need a strongset function which identifies the canonical strong set
     dscc = scc(h)
-    pg = bfs(g, g[l])
+    pg = bfs(g, g[l])[0]
     connected = [vprop for vprop in pg if vprop.label in dscc[0]]
     return sum([vprop.d for vprop in connected]) / len(connected) 
 
