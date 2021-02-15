@@ -25,7 +25,10 @@ g[5].sign(2) # outedge from F to C
 g[5].sign(4) # outedge from F to E
 
 print(*g, sep="\n")
-
-pg = wot.bfs(g, g[0])
-
+pg, paths = wot.bfs(g, g[0])
 print(*pg, sep="\n")
+print(paths)
+print(*wot._get_edge_scores(g, pg, paths), sep="\n")
+print("")
+print(*wot.ebc(g), sep="\n")
+

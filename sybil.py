@@ -44,6 +44,7 @@ for m in msds:
 print("\n\n")
 
 # Peer 17 tricks peer 2 into reciprocally signing him into the strong set
+# we see that Peer 17's community subgraph is detectable (as articulation points) via brute force 
 g1[17].sign(2)
 g1[2].sign(17)
 print(*wot.scc(g1), sep="\n")
@@ -60,6 +61,7 @@ for m in msds:
 print("\n\n")
 
 # Peer 17 uses his sock identity, Peer 29, to trick peer 4 into reciprocally signing him into the strong set
+# we see that Peer 17's community subgraph is no longer detectable because there is > 1 articulation point
 g1[29].sign(4)
 g1[4].sign(29)
 print(*wot.scc(g1), sep="\n")
@@ -74,3 +76,8 @@ for m in msds:
     print(f"peer: {m[0]} msd: {m[1]:.1f} art points: {wot.ss_artic(g1, m[0])}")
 
 print("\n\n")
+
+# Calculate edge betweenness centrality over the network
+ebc = wot.ebc(g1)
+print(*wot.top_ebc(ebc), sep="\n")
+

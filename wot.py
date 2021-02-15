@@ -84,11 +84,15 @@ class Vertex_prop:
         self.label = label
 
     def __str__(self):
-        return f"Vertex_prop(color: {self.color}, d: {self.d}, f: {self.f }, pi: {None if self.pi == None else self.pi.label}, label: {self.label})"
+        return f"Vertex_prop(color: {self.color}, d: {self.d}, f: {self.f}, pi: {None if self.pi == None else self.pi.label}, label: {self.label})"
 
 # Breadth first search - returns the predecessor subgraph (as vertex properties) for graph g w.r.t source vertex s   
+# and the number of shortest paths to each vertex w.r.t source vertex s
 def bfs(g, s):
     vprops = []
+    
+    paths = [0 for _ in g]
+    paths[g.index(s)] = 1
 
     for i in range(len(g)):
         if (g[i] == s): 
@@ -97,7 +101,7 @@ def bfs(g, s):
 
         vprops.append(Vertex_prop(COLOR.WHITE, float("inf"), None, None, i))
     
-    sp = Vertex_prop(COLOR.GREY, 0, None, None, g.index(s))  # Here's props for the source vertex
+    sp = Vertex_prop(COLOR.GREY, 0, None, None, g.index(s)) # Here's props for the source vertex
     q = [] 
     q.append(sp)
 
@@ -108,6 +112,14 @@ def bfs(g, s):
         for v in g[u.label].signed:
             vp = vprops[v] if vprops[v] != None else sp 
             
+            # The CLRS discussion of BFS doesn't ever consider counting shortest paths,
+            # so I hacked this in from https://www.baeldung.com/cs/graph-number-of-shortest-paths
+            # TODO: we should prob give it a rigorous unit test
+            if vp.d > u.d + 1:
+                paths[vp.label] = paths[u.label]
+            elif vp.d == u.d + 1:
+                paths[vp.label] = paths[vp.label] + paths[u.label]
+
             if vp.color == COLOR.WHITE:
                 vp.color = COLOR.GREY
                 vp.d = u.d + 1
@@ -117,7 +129,79 @@ def bfs(g, s):
         u.color = COLOR.BLACK
 
     vprops[sp.label] = sp
-    return [vp for vp in vprops if vp.pi != None or vp == sp]
+    return ([vp for vp in vprops if vp.pi != None or vp == sp], paths)
+
+# Compute the edge scores for a graph g, w.r.t a single vertex, from a predecessor subgraph and
+# number of shortest paths as computed by BFS above
+# TODO: this is an inefficient naive implementation which is excessively complicated because we support directed graphs
+# and we represent our graphs as adjacency lists... since a node's edges do not indicate bidirectional relationships,
+# we can't determine all of a node's parents by looking at its edges -- instead, we have to search the graph for all
+# of the nodes who have outedges to the present node. The predecessor subgraph created during BFS does not capture
+# all parent-child relationships, because it ignores edges that would create cycles...
+# There might be a way to capture the cyclic edges during BFS... or we might research whether it's possible to 
+# enforce a "reciprocal signatures only" policy such that un-reciprocated signatures are not even considered, effectively
+# giving us undirected graphs...
+# ALSO TODO: the output is transposed - ie, scores[i][j] is the score for the outedge from vertex j to vertex i
+def _get_edge_scores(g, pg, paths):
+    z = list(zip(pg, paths))
+    z.sort(key=lambda x: x[0].d, reverse=True)
+    
+    # Our intermediate representation is a list of dictionaries, where list[i] is a dictionary mapping
+    # outedges (as vertex numbers) to scores - it's ordered by label (ie default order of the predecessor subgraph)
+    scores = [{} for _ in pg]
+   
+    # Since we sorted our predecessor subgraph by distance descending above, we're climbing from leaf to root:
+    for i, zipped in enumerate(z):
+        vprop = zipped[0]
+        n_paths = zipped[1]
+
+        # We need to calculate edge scores for every node with a smaller distance than vprop which has an outedge to vprop, so...
+        # TODO: you could do this faster by only considering nodes ahead of our current pointer in z
+        for pubkey in g:
+            if pg[pubkey.label].d < vprop.d and vprop.label in pubkey.signed:
+                # Collect any accumulated predecessor flow...
+                f = 0
+
+                # ...which we do by looping through the graph and grabbing all nodes with a larger distance than vprop
+                # which vprop has an outedge to
+                for child in g[vprop.label].signed:
+                    if pg[child].d > vprop.d:
+                        f += scores[child][vprop.label]
+
+                scores[vprop.label][pubkey.label] = ((paths[pubkey.label] if i == 0 else 1) + f) / n_paths
+    
+    return scores
+
+# Compute the edge betweenness centrality for graph g
+def ebc(g, digraph=True):
+    scores = []
+
+    for v in g:
+        pg, paths = bfs(g, v)
+        scores.append(_get_edge_scores(g, pg, paths))
+    
+    # TODO: this is a naive method to sum over all the scores
+    final = [{} for _ in g]
+    
+    for score_wrt_source in scores:
+        for i, score_dict in enumerate(score_wrt_source):
+            for k in score_dict.keys():
+                final[i][k] = final[i].get(k, 0) + score_dict[k]
+
+    return final
+
+# Get the top n EBC scores from the result of a call to ebc above
+# Returns a sorted list of [u-v, score] lists
+def top_ebc(scores, n=10):
+    # TODO: rewrite this as a list comprehension
+    res = []
+
+    for i, score_dict in enumerate(scores):
+        for k in score_dict:
+            res.append([f"{i}-{k}", score_dict[k]])
+    
+    res.sort(key=lambda x: x[1], reverse=True)
+    return res[:n]
 
 # Depth first search - returns vertex properties created for graph g
 def dfs(g, visit_order=None):
