@@ -191,17 +191,40 @@ def ebc(g, digraph=True):
     return final
 
 # Get the top n EBC scores from the result of a call to ebc above
-# Returns a sorted list of [u-v, score] lists
+# Returns a sorted list of [u, v, score] lists
+# TODO: we reverse the tranpose here, but that's pretty sloppy
 def top_ebc(scores, n=10):
     # TODO: rewrite this as a list comprehension
     res = []
 
     for i, score_dict in enumerate(scores):
         for k in score_dict:
-            res.append([f"{i}-{k}", score_dict[k]])
+            res.append([k, i, score_dict[k]])
     
-    res.sort(key=lambda x: x[1], reverse=True)
+    res.sort(key=lambda x: x[2], reverse=True)
     return res[:n]
+
+# Girven-Newman community detection algorithm, modified to use strongly connected component instead of
+# connected component (since we currently use directed graphs)
+# Assumes graph g has one strongly connected component
+# The algo will split g into > 1 strongly connected components, aka "communities," and return a list
+# of the communities as well as the number of edges that were removed to create the split
+# TODO: we might want to know what edges were removed to create the split, aka the top EBC for the graph
+# TODO: we recalculate EBC over the graph after each edge removal, is that correct?
+def girven_newman(g):
+    h = copy.deepcopy(g)
+    sc = scc(h)
+    n = 0
+
+    while len(sc) == 1:
+        e = top_ebc(ebc(h), n=1)
+        print(e)
+        h[e[0][0]].signed.remove(e[0][1]) 
+        h[e[0][1]].signed.remove(e[0][0])
+        n += 1
+        sc = scc(h)
+
+    return sc, n
 
 # Depth first search - returns vertex properties created for graph g
 def dfs(g, visit_order=None):

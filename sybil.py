@@ -22,7 +22,7 @@ msds.sort(key=lambda x: x[1])
 print("STRONG SET:")
 
 for m in msds:
-    print(f"peer: {m[0]} msd: {m[1]:.1f} art points: {wot.ss_artic(g1, m[0])}")
+    print(f"peer: {m[0]} msd: {m[1]:.1f} articulations: {wot.ss_artic(g1, m[0])}")
 
 print("\n\n")
 
@@ -39,7 +39,7 @@ msds.sort(key=lambda x: x[1])
 print("STRONG SET:")
 
 for m in msds:
-    print(f"peer: {m[0]} msd: {m[1]:.1f} art points: {wot.ss_artic(g1, m[0])}")
+    print(f"peer: {m[0]} msd: {m[1]:.1f} articulations: {wot.ss_artic(g1, m[0])}")
 
 print("\n\n")
 
@@ -56,7 +56,7 @@ msds.sort(key=lambda x: x[1])
 print("STRONG SET:")
 
 for m in msds:
-    print(f"peer: {m[0]} msd: {m[1]:.1f} art points: {wot.ss_artic(g1, m[0])}")
+    print(f"peer: {m[0]} msd: {m[1]:.1f} articulations: {wot.ss_artic(g1, m[0])}")
 
 print("\n\n")
 
@@ -78,6 +78,24 @@ for m in msds:
 print("\n\n")
 
 # Calculate edge betweenness centrality over the network
+print("Edge betweenness centrality:")
 ebc = wot.ebc(g1)
 print(*wot.top_ebc(ebc), sep="\n")
+print("\n\n")
 
+# Run Girven-Newman and detect communities
+print("Girven-Newman community detection:")
+sc, n = wot.girven_newman(g1)
+print(*sc, sep="\n")
+print(f"edges removed: {n}")
+print("\n\n")
+
+# Peer 17 uses another sock identity, Peer 21, to trick Peer 7 into reciprocally signing him into the strong set
+g1[21].sign(7)
+g1[7].sign(21)
+
+# Run Girven-Newman and detect communities
+print("Girven-Newman community detection:")
+sc, n = wot.girven_newman(g1)
+print(*sc, sep="\n")
+print(f"edges removed: {n}")
