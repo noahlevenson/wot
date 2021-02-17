@@ -86,7 +86,11 @@ print("\n\n")
 # Run Girven-Newman and detect communities
 print("Girven-Newman community detection:")
 sc, n = wot.girven_newman(g1)
-print(*sc, sep="\n")
+
+for community in sc:
+    print(community)
+    print(f"AMSD: {wot.amsd(g1, community)}")
+
 print(f"edges removed: {n}")
 print("\n\n")
 
@@ -97,5 +101,11 @@ g1[7].sign(21)
 # Run Girven-Newman and detect communities
 print("Girven-Newman community detection:")
 sc, n = wot.girven_newman(g1)
-print(*sc, sep="\n")
+
+for community in sc:
+    print(community)
+    print(f"AMSD: {wot.amsd(g1, community)}")
+
+
+
 print(f"edges removed: {n}")
